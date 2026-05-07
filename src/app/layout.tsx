@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import '../styles/tailwind.css';
+import { RoleProvider } from '@/context/RoleContext';
 
 const geistSans = Geist({
   subsets: ['latin'],
@@ -36,7 +37,9 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${geistSans.variable} ${geistMono.variable} dark`}>
       <body className={geistSans.className}>
-        {children}
+        <RoleProvider>
+          {children}
+        </RoleProvider>
 
         <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Felai27477back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.18" />
         <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></body>
