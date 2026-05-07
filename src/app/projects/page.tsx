@@ -47,6 +47,11 @@ function ProjectModal({ project, onClose }: ProjectModalProps) {
   const projectTasks = TASKS.filter(t => t.projectId === project.id);
   const statusColor = STATUS_COLORS[project.status] || '#94a3b8';
 
+  // Collect all unique collaborators (from project.collaboratorIds + task assignees)
+  const taskAssigneeIds = [...new Set(projectTasks.map(t => t.assigneeId))];
+  const allCollabIds = [...new Set([project.leadId, ...(project.collaboratorIds || []), ...taskAssigneeIds])];
+  const allCollabs = allCollabIds.map(id => PERSONS.find(p => p.id === id)).filter(Boolean);
+
   const phases = [
     { name: 'Planlama', start: 0, width: 20, color: '#3b7dd8', done: true },
     { name: 'Geliştirme', start: 20, width: 35, color: '#8b5cf6', done: project.completionPercent > 30 },
@@ -67,6 +72,7 @@ function ProjectModal({ project, onClose }: ProjectModalProps) {
             </div>
             <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
             <p className="text-sm text-muted-foreground mt-1">Lider: {lead?.name} · {project.startDate} → {project.endDate}</p>
+            {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><X size={18} /></button>
         </div>
@@ -92,6 +98,36 @@ function ProjectModal({ project, onClose }: ProjectModalProps) {
               </div>
             ))}
           </div>
+
+          {/* Collaborators section */}
+          {allCollabs.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Katkı Veren Ekip ({allCollabs.length} kişi)</h3>
+              <div className="flex flex-wrap gap-2">
+                {allCollabs.map(person => {
+                  if (!person) return null;
+                  const deptColor = DEPARTMENT_COLORS[person.department] || '#94a3b8';
+                  const isLead = person.id === project.leadId;
+                  return (
+                    <div key={person.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-border bg-muted/20">
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                        style={{ backgroundColor: deptColor }}
+                      >
+                        {person.avatar.slice(0, 2)}
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">{person.name}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${deptColor}20`, color: deptColor }}>
+                        {person.department}
+                      </span>
+                      {isLead && <span className="text-xs text-amber-500 font-bold">★</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Faz Planı (Gantt)</h3>
             <div className="space-y-2">
@@ -110,10 +146,11 @@ function ProjectModal({ project, onClose }: ProjectModalProps) {
           </div>
           {projectTasks.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-foreground mb-3">Görevler</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Görevler ({projectTasks.length})</h3>
               <div className="space-y-2">
                 {projectTasks.map(task => {
                   const assignee = PERSONS.find(p => p.id === task.assigneeId);
+                  const collabPersons = (task.collaboratorIds || []).map(id => PERSONS.find(p => p.id === id)).filter(Boolean);
                   return (
                     <Link key={task.id} href="/task-kanban-panel" className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border transition-all cursor-pointer" onClick={onClose}>
                       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -122,7 +159,20 @@ function ProjectModal({ project, onClose }: ProjectModalProps) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-foreground truncate">{task.name}</p>
-                          <p className="text-xs text-muted-foreground">{assignee?.name} · {task.endDate}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-xs text-muted-foreground">{assignee?.name}</p>
+                            {collabPersons.length > 0 && (
+                              <div className="flex items-center -space-x-1">
+                                {collabPersons.slice(0, 3).map(cp => cp && (
+                                  <div key={cp.id} className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold text-white border border-card" style={{ backgroundColor: DEPARTMENT_COLORS[cp.department] || '#94a3b8' }} title={cp.name}>
+                                    {cp.avatar.slice(0, 1)}
+                                  </div>
+                                ))}
+                                {collabPersons.length > 3 && <span className="text-xs text-muted-foreground ml-1">+{collabPersons.length - 3}</span>}
+                              </div>
+                            )}
+                            <p className="text-xs text-muted-foreground">· {task.endDate}</p>
+                          </div>
                         </div>
                       </div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full ml-2 shrink-0" style={{ backgroundColor: `${TASK_STATUS_COLORS[task.status] || '#94a3b8'}20`, color: TASK_STATUS_COLORS[task.status] || '#94a3b8' }}>{task.status}</span>
@@ -558,7 +608,9 @@ function ProjectCardsView({ projects }: { projects: Project[] }) {
           const statusColor = STATUS_COLORS[project.status] || '#94a3b8';
           const projectTasks = TASKS.filter(t => t.projectId === project.id);
           const delayed = projectTasks.filter(t => t.status === 'Gecikmiş').length;
-          const assignees = [...new Set(projectTasks.map(t => t.assigneeId))].map(id => PERSONS.find(p => p.id === id)).filter(Boolean);
+          // Collect all unique people: lead + collaborators + task assignees
+          const allPeopleIds = [...new Set([project.leadId, ...(project.collaboratorIds || []), ...projectTasks.map(t => t.assigneeId)])];
+          const allPeople = allPeopleIds.map(id => PERSONS.find(p => p.id === id)).filter(Boolean);
 
           return (
             <div
@@ -591,28 +643,28 @@ function ProjectCardsView({ projects }: { projects: Project[] }) {
                 </div>
               </div>
 
-              {/* Assignee avatars */}
-              {assignees.length > 0 && (
+              {/* Collaborator avatars */}
+              {allPeople.length > 0 && (
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xs text-muted-foreground">Çalışanlar:</span>
+                  <span className="text-xs text-muted-foreground shrink-0">Ekip:</span>
                   <div className="flex items-center -space-x-1.5">
-                    {assignees.slice(0, 6).map(person => person && (
+                    {allPeople.slice(0, 7).map(person => person && (
                       <div
                         key={person.id}
                         className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-card"
                         style={{ backgroundColor: DEPARTMENT_COLORS[person.department] || '#94a3b8' }}
-                        title={person.name}
+                        title={`${person.name} (${person.department})`}
                       >
                         {person.avatar.slice(0, 1)}
                       </div>
                     ))}
-                    {assignees.length > 6 && (
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-muted border-2 border-card">
-                        +{assignees.length - 6}
+                    {allPeople.length > 7 && (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-muted-foreground bg-muted border-2 border-card">
+                        +{allPeople.length - 7}
                       </div>
                     )}
                   </div>
-                  <span className="text-xs text-muted-foreground">{assignees.length} kişi</span>
+                  <span className="text-xs text-muted-foreground">{allPeople.length} kişi</span>
                 </div>
               )}
 
