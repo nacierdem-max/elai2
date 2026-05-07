@@ -1,8 +1,11 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, FolderKanban, ClipboardList, AlertTriangle, FileText, BarChart3, Settings, ChevronLeft, ChevronRight, Archive, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, ClipboardList, AlertTriangle, FileText, BarChart3, Settings, ChevronLeft, ChevronRight, Archive, BookOpen, LogOut } from 'lucide-react';
+import { useRole } from '@/context/RoleContext';
+import { type PersonnelRoleKey } from '@/data/mockData';
 
 interface NavItem {
   id: string;
@@ -11,17 +14,32 @@ interface NavItem {
   href: string;
   badge?: number;
   badgeColor?: string;
+  allowedRoles?: PersonnelRoleKey[]; // undefined = all roles
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { id: 'nav-team', label: 'Ekip & Personel', icon: Users, href: '/team', badge: 3, badgeColor: 'bg-blue-100 text-blue-600' },
-  { id: 'nav-projects', label: 'Projeler', icon: FolderKanban, href: '/projects', badge: 22 },
-  { id: 'nav-tasks', label: 'Görev / Kanban', icon: ClipboardList, href: '/task-kanban-panel', badge: 39, badgeColor: 'bg-red-100 text-red-500' },
-  { id: 'nav-risks', label: 'Riskler', icon: AlertTriangle, href: '/risks', badge: 18, badgeColor: 'bg-orange-100 text-orange-500' },
+  {
+    id: 'nav-projects', label: 'Projeler', icon: FolderKanban, href: '/projects', badge: 22,
+    allowedRoles: ['proje-lideri', 'departman-lideri', 'urun-yoneticisi', 'arge-temsilcisi', 'arge-yoneticisi'],
+  },
+  {
+    id: 'nav-tasks', label: 'Görev / Kanban', icon: ClipboardList, href: '/task-kanban-panel', badge: 39, badgeColor: 'bg-red-100 text-red-500',
+  },
+  {
+    id: 'nav-risks', label: 'Riskler', icon: AlertTriangle, href: '/risks', badge: 18, badgeColor: 'bg-orange-100 text-orange-500',
+    allowedRoles: ['proje-lideri', 'departman-lideri', 'urun-yoneticisi', 'arge-temsilcisi', 'arge-yoneticisi'],
+  },
   { id: 'nav-files', label: 'Dosya & Mesaj', icon: FileText, href: '/files' },
-  { id: 'nav-analytics', label: 'Analytics / AI', icon: BarChart3, href: '/analytics' },
-  { id: 'nav-logs', label: 'Log & Raporlar', icon: Archive, href: '/logs', badge: 11, badgeColor: 'bg-yellow-100 text-yellow-600' },
+  {
+    id: 'nav-analytics', label: 'Analytics / AI', icon: BarChart3, href: '/analytics',
+    allowedRoles: ['departman-lideri', 'urun-yoneticisi', 'arge-temsilcisi', 'arge-yoneticisi'],
+  },
+  {
+    id: 'nav-logs', label: 'Log & Raporlar', icon: Archive, href: '/logs', badge: 11, badgeColor: 'bg-yellow-100 text-yellow-600',
+    allowedRoles: ['proje-lideri', 'departman-lideri', 'urun-yoneticisi', 'arge-temsilcisi', 'arge-yoneticisi'],
+  },
   { id: 'nav-onboarding', label: 'Rol Tanımları', icon: BookOpen, href: '/onboarding' },
 ];
 
@@ -31,6 +49,24 @@ interface SidebarProps {
 
 export default function Sidebar({ currentPath = '/dashboard' }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { currentRole, roleDefinition, clearRole } = useRole();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearRole();
+    router.push('/');
+  };
+
+  const visibleItems = NAV_ITEMS.filter(item => {
+    if (!item.allowedRoles) return true;
+    if (!currentRole) return true;
+    return item.allowedRoles.includes(currentRole.roleKey);
+  });
+
+  const displayName = currentRole?.name ?? 'Kullanıcı';
+  const displayInitials = currentRole?.initials ?? '??';
+  const roleColor = roleDefinition?.color ?? '#0071e3';
+  const roleBg = roleDefinition?.bgColor ?? '#e8f0fb';
 
   return (
     <aside
@@ -87,7 +123,7 @@ export default function Sidebar({ currentPath = '/dashboard' }: SidebarProps) {
             Modüller
           </p>
         )}
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const NavIcon = item.icon;
           const active = item.href === currentPath || (item.id === 'nav-dashboard' && currentPath === '/dashboard');
 
@@ -135,14 +171,29 @@ export default function Sidebar({ currentPath = '/dashboard' }: SidebarProps) {
           {!collapsed && <span>Ayarlar</span>}
         </Link>
 
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 hover:bg-red-50 ${collapsed ? 'justify-center' : ''}`}
+          style={{ color: '#ef4444' }}
+          title={collapsed ? 'Çıkış Yap' : undefined}
+        >
+          <LogOut size={18} className="shrink-0" />
+          {!collapsed && <span>Çıkış Yap</span>}
+        </button>
+
+        {/* Current user/role */}
         <div className={`flex items-center gap-2 px-2 py-2 rounded-xl mt-1 ${collapsed ? 'justify-center' : ''}`} style={{ background: '#f5f5f7' }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: '#e8f0fb', color: '#0071e3' }}>
-            DK
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: roleBg, color: roleColor }}
+          >
+            {displayInitials}
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-xs font-semibold truncate" style={{ color: '#1d1d1f' }}>Derya Koç</p>
-              <p className="text-xs truncate" style={{ color: '#6e6e73' }}>Ar-Ge Direktörü</p>
+              <p className="text-xs font-semibold truncate" style={{ color: '#1d1d1f' }}>{displayName}</p>
+              <p className="text-xs truncate" style={{ color: roleColor }}>{roleDefinition?.title ?? 'Rol seçilmedi'}</p>
             </div>
           )}
         </div>

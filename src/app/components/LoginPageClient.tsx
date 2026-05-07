@@ -1,228 +1,144 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown, Zap, Users, AlertTriangle, FolderKanban, ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
-import DepartmentBadge from '@/components/ui/DepartmentBadge';
-import { PERSONS, type Person } from '@/data/mockData';
+import { PERSONNEL_ROLES, type PersonnelRoleKey } from '@/data/mockData';
+import { useRole } from '@/context/RoleContext';
+
+// Default display names per role
+const ROLE_DEFAULT_NAMES: Record<PersonnelRoleKey, { name: string; initials: string }> = {
+  'arge-personeli': { name: 'Ar-Ge Personeli', initials: 'AP' },
+  'proje-lideri': { name: 'Proje Lideri', initials: 'PL' },
+  'departman-lideri': { name: 'Departman Lideri', initials: 'DL' },
+  'urun-yoneticisi': { name: 'Ürün Yöneticisi', initials: 'ÜY' },
+  'arge-temsilcisi': { name: 'Pınar Tüzün', initials: 'PT' },
+  'arge-yoneticisi': { name: 'Ar-Ge Merkezi Yöneticisi', initials: 'AY' },
+};
 
 export default function LoginPageClient() {
   const router = useRouter();
+  const { setRole } = useRole();
+  const [selectedRoleKey, setSelectedRoleKey] = useState<PersonnelRoleKey | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(PERSONS[0]);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const filteredPersons = PERSONS.filter(p =>
-    p.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-    p.department.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-    p.title.toLowerCase().includes(userSearchQuery.toLowerCase())
-  ).slice(0, 12);
-
-  const handlePersonSelect = (person: Person) => {
-    setSelectedPerson(person);
-    setUserDropdownOpen(false);
-    setUserSearchQuery('');
-  };
 
   const handleEnter = async () => {
+    if (!selectedRoleKey) return;
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 600));
+    const defaults = ROLE_DEFAULT_NAMES[selectedRoleKey];
+    setRole({ roleKey: selectedRoleKey, name: defaults.name, initials: defaults.initials });
+    await new Promise(resolve => setTimeout(resolve, 500));
     router.push('/dashboard');
   };
 
-  const handleOnboarding = () => {
-    router.push('/onboarding');
-  };
-
   return (
-    <div className="min-h-screen flex" style={{ background: '#f5f5f7' }}>
-      {/* Left Brand Panel */}
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-10"
+      style={{ background: 'linear-gradient(160deg, #0a1628 0%, #0d2247 55%, #0a3060 100%)' }}
+    >
+      {/* Background grid */}
       <div
-        className="hidden lg:flex lg:w-[460px] xl:w-[520px] flex-col relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #0071e3 0%, #0051a2 100%)' }}
-      >
-        {/* Subtle dot pattern */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `radial-gradient(circle, #ffffff 1px, transparent 1px)`,
-            backgroundSize: '32px 32px',
-          }}
-        />
+        className="fixed inset-0 opacity-[0.05] pointer-events-none"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)`,
+          backgroundSize: '48px 48px',
+        }}
+      />
+      {/* Glow */}
+      <div
+        className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none opacity-20"
+        style={{ background: 'radial-gradient(ellipse, #0071e3 0%, transparent 70%)' }}
+      />
 
-        <div className="relative z-10 flex flex-col h-full p-10">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <AppLogo size={44} />
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">EliarArGe</h1>
-              <p className="text-xs text-blue-100 font-medium">Eliar Elektrik A.Ş.</p>
-            </div>
-          </div>
-
-          {/* Main copy */}
-          <div className="mt-auto mb-auto pt-16">
-            <div className="inline-flex items-center gap-2 bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-6 backdrop-blur-sm">
-              <Zap size={12} />
-              100 Kişilik Akıllı Ar-Ge Platformu
-            </div>
-            <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-              Tüm Ar-Ge<br />
-              <span className="text-blue-100">Operasyonunuz</span><br />
-              Tek Ekranda
-            </h2>
-            <p className="text-blue-100 text-base leading-relaxed max-w-sm">
-              Proje, görev, risk, dosya ve ekip yönetimini birbirine zincirlenmiş
-              bir platformda yönetin. Her veri birbiriyle bağlantılı.
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mt-auto">
-            {[
-              { icon: Users, label: 'Personel', value: '100' },
-              { icon: FolderKanban, label: 'Proje', value: '22' },
-              { icon: AlertTriangle, label: 'Açık Risk', value: '29' },
-            ].map((stat) => {
-              const StatIcon = stat.icon;
-              return (
-                <div key={`stat-${stat.label}`} className="bg-white/15 border border-white/20 rounded-2xl p-4 backdrop-blur-sm">
-                  <StatIcon size={20} className="text-white mb-2 opacity-80" />
-                  <p className="text-2xl font-bold text-white tabular-nums">{stat.value}</p>
-                  <p className="text-xs text-blue-100 mt-0.5">{stat.label}</p>
-                </div>
-              );
-            })}
-          </div>
+      <div className="relative z-10 w-full max-w-2xl">
+        {/* Logo + Title */}
+        <div className="flex flex-col items-center mb-8 text-center">
+          <AppLogo size={52} />
+          <h1 className="text-2xl font-bold text-white mt-3 tracking-tight">EliarArGe</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            Eliar Elektrik A.Ş. — Akıllı Ar-Ge Yönetim Platformu
+          </p>
         </div>
-      </div>
 
-      {/* Right Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center px-6 py-10 overflow-y-auto">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <AppLogo size={36} />
-            <span className="font-bold text-lg text-foreground">EliarArGe</span>
-          </div>
-
-          {/* Heading */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground mb-1">Demo Girişi</h2>
-            <p className="text-sm" style={{ color: '#6e6e73' }}>
-              Bir kullanıcı seçin ve platforma giriş yapın.
+        {/* Card */}
+        <div
+          className="rounded-3xl p-6 sm:p-8"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <div className="mb-6 text-center">
+            <h2 className="text-lg font-semibold text-white mb-1">Rolünüzü Seçin</h2>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Demo ortamı — giriş yapmak istediğiniz rolü seçin
             </p>
           </div>
 
-          {/* User Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-foreground mb-1.5">
-              Kullanıcı Seç
-            </label>
-            <p className="text-xs mb-2" style={{ color: '#6e6e73' }}>100 personelden birini seçin veya arayın</p>
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-150"
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #d2d2d7',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                }}
-              >
-                {selectedPerson ? (
-                  <>
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ backgroundColor: '#e8f0fb', color: '#0071e3' }}
-                    >
-                      {selectedPerson.avatar.slice(0, 2)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{selectedPerson.name}</p>
-                      <p className="text-xs truncate" style={{ color: '#6e6e73' }}>{selectedPerson.title} · {selectedPerson.activeProjects} aktif proje</p>
-                    </div>
-                    <DepartmentBadge department={selectedPerson.department} size="sm" />
-                  </>
-                ) : (
-                  <span className="text-sm" style={{ color: '#6e6e73' }}>Kullanıcı seçin...</span>
-                )}
-                <ChevronDown size={16} style={{ color: '#6e6e73' }} className={`shrink-0 transition-transform duration-150 ${userDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {userDropdownOpen && (
-                <div
-                  className="absolute top-full left-0 right-0 mt-1.5 rounded-2xl overflow-hidden animate-scale-in z-50"
+          {/* Role Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            {PERSONNEL_ROLES.map((role) => {
+              const isSelected = selectedRoleKey === role.key;
+              return (
+                <button
+                  key={role.key}
+                  type="button"
+                  onClick={() => setSelectedRoleKey(role.key)}
+                  className="relative flex items-start gap-3 rounded-2xl p-4 text-left transition-all duration-200 active:scale-[0.98]"
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #d2d2d7',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                    background: isSelected ? role.bgColor : 'rgba(255,255,255,0.05)',
+                    border: `2px solid ${isSelected ? role.color : 'rgba(255,255,255,0.1)'}`,
+                    boxShadow: isSelected ? `0 0 0 4px ${role.color}22` : 'none',
                   }}
                 >
-                  <div className="p-2 border-b" style={{ borderColor: '#e8e8ed' }}>
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6e6e73' }} />
-                      <input
-                        type="text"
-                        placeholder="İsim, departman, unvan..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        className="w-full rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none"
-                        style={{
-                          background: '#f5f5f7',
-                          border: '1px solid #d2d2d7',
-                          color: '#1d1d1f',
-                        }}
-                      />
+                  {/* Selected check */}
+                  {isSelected && (
+                    <div className="absolute top-3 right-3">
+                      <CheckCircle2 size={16} style={{ color: role.color }} />
                     </div>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filteredPersons.length === 0 ? (
-                      <p className="text-center text-sm py-6" style={{ color: '#6e6e73' }}>Sonuç bulunamadı</p>
-                    ) : (
-                      filteredPersons.map((person) => (
-                        <button
-                          key={`person-opt-${person.id}`}
-                          type="button"
-                          onClick={() => handlePersonSelect(person)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-100 text-left ${selectedPerson?.id === person.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                        >
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                            style={{ backgroundColor: '#e8f0fb', color: '#0071e3' }}
-                          >
-                            {person.avatar.slice(0, 2)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{person.name}</p>
-                            <p className="text-xs truncate" style={{ color: '#6e6e73' }}>{person.title}</p>
-                          </div>
-                          <DepartmentBadge department={person.department} size="sm" />
-                        </button>
-                      ))
+                  )}
+                  <span className="text-2xl shrink-0 mt-0.5">{role.icon}</span>
+                  <div className="min-w-0 flex-1 pr-4">
+                    <p
+                      className="text-sm font-semibold leading-snug"
+                      style={{ color: isSelected ? role.color : '#ffffff' }}
+                    >
+                      {role.title}
+                    </p>
+                    <p
+                      className="text-xs mt-0.5 leading-snug"
+                      style={{ color: isSelected ? '#3a3a3c' : 'rgba(255,255,255,0.45)' }}
+                    >
+                      {role.subtitle}
+                    </p>
+                    {isSelected && (
+                      <p
+                        className="text-xs mt-2 leading-relaxed"
+                        style={{ color: '#3a3a3c' }}
+                      >
+                        {role.description}
+                      </p>
                     )}
                   </div>
-                  <div className="px-3 py-2 border-t" style={{ borderColor: '#e8e8ed', background: '#f5f5f7' }}>
-                    <p className="text-xs" style={{ color: '#6e6e73' }}>Toplam {PERSONS.length} personel · {filteredPersons.length} gösteriliyor</p>
-                  </div>
-                </div>
-              )}
-            </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Enter Button */}
           <button
             type="button"
             onClick={handleEnter}
-            disabled={isLoading || !selectedPerson}
-            className="w-full flex items-center justify-center gap-2 text-white font-semibold py-3 rounded-xl transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={isLoading || !selectedRoleKey}
+            className="w-full flex items-center justify-center gap-2 text-white font-semibold py-3.5 rounded-2xl transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
-              background: isLoading ? '#0051a2' : '#0071e3',
-              minHeight: '48px',
-              boxShadow: '0 2px 8px rgba(0,113,227,0.3)',
+              background: selectedRoleKey
+                ? (PERSONNEL_ROLES.find(r => r.key === selectedRoleKey)?.color ?? '#0071e3')
+                : 'rgba(255,255,255,0.15)',
+              boxShadow: selectedRoleKey ? '0 4px 16px rgba(0,0,0,0.25)' : 'none',
+              minHeight: '52px',
             }}
           >
             {isLoading ? (
@@ -232,27 +148,13 @@ export default function LoginPageClient() {
               </>
             ) : (
               <>
-                <span>Platforma Giriş Yap</span>
-                <ArrowRight size={16} />
+                <span>{selectedRoleKey ? 'Platforma Giriş Yap' : 'Bir rol seçin'}</span>
+                {selectedRoleKey && <ArrowRight size={16} />}
               </>
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={handleOnboarding}
-            className="w-full flex items-center justify-center gap-2 font-semibold py-2.5 rounded-xl transition-all duration-150 active:scale-95 mt-2"
-            style={{
-              background: '#f5f5f7',
-              color: '#3a3a3c',
-              border: '1px solid #d2d2d7',
-            }}
-          >
-            <BookOpen size={16} />
-            <span>Rol Tanımlarını Gör (Onboarding)</span>
-          </button>
-
-          <p className="text-center text-xs mt-4" style={{ color: '#6e6e73' }}>
+          <p className="text-center text-xs mt-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
             Bu bir demo ortamıdır — kimlik doğrulama gerekmez.
           </p>
         </div>
